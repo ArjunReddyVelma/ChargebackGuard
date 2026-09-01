@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app.models import Transaction, Score, ReasonChain, AuditLog
 from app.schemas import TransactionIngestSchema
-from app.rule_engine import evaluate_transaction_rules
+from app.scoring_service import score_and_route_transaction
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 
@@ -51,7 +51,7 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
     valid_transactions = []
     
     rule_decided_count = 0
-    needs_llm_count = 0
+    llm_decided_count = 0
 
     for idx, row in enumerate(rows, start=1):
         tx_id = row.get("transaction_id", "").strip()
@@ -79,7 +79,6 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
 
         # Validate schema & VR-1 to VR-4
         try:
-            # Parse types
             raw_data = {
                 "transaction_id": tx_id,
                 "timestamp": row.get("timestamp", "").strip(),
@@ -96,7 +95,6 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
             }
             validated_schema = TransactionIngestSchema(**raw_data)
         except Exception as e:
-            # Extract error code if present
             err_msg = str(e)
             err_code = "INVALID_FIELD_VALUE"
             if "INVALID_AMOUNT" in err_msg:
@@ -114,8 +112,10 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
             })
             continue
 
-        # Evaluate Rule Engine
-        status_tag, score, routing_outcome, rule_name, reason_bullets = evaluate_transaction_rules(validated_schema.model_dump())
+        tx_dict = validated_schema.model_dump()
+
+        # Score & Route via Scoring Service (Rules + LLM + Routing)
+        score, routing_outcome, decided_by, rule_name, reason_bullets = score_and_route_transaction(tx_dict)
 
         db_tx = Transaction(
             transaction_id=validated_schema.transaction_id,
@@ -136,25 +136,26 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
         db.add(db_tx)
         db.flush()
 
-        if status_tag == "rule_decided":
+        if decided_by == "rule":
             rule_decided_count += 1
-            db_score = Score(
-                transaction_id=validated_schema.transaction_id,
-                score=score,
-                routing_outcome=routing_outcome,
-                decided_by="rule",
-                rule_name=rule_name
-            )
-            db.add(db_score)
-
-            db_reason = ReasonChain(
-                transaction_id=validated_schema.transaction_id,
-                reason_text="\n".join([f"• {r}" for r in reason_bullets]),
-                referenced_fields=json.dumps(["velocity_10min", "is_new_device", "ip_country", "billing_country", "shipping_country"])
-            )
-            db.add(db_reason)
         else:
-            needs_llm_count += 1
+            llm_decided_count += 1
+
+        db_score = Score(
+            transaction_id=validated_schema.transaction_id,
+            score=score,
+            routing_outcome=routing_outcome,
+            decided_by=decided_by,
+            rule_name=rule_name
+        )
+        db.add(db_score)
+
+        db_reason = ReasonChain(
+            transaction_id=validated_schema.transaction_id,
+            reason_text="\n".join([f"• {r}" for r in reason_bullets]),
+            referenced_fields=json.dumps(["velocity_10min", "is_new_device", "ip_country", "billing_country", "shipping_country", "amount", "account_age_days"])
+        )
+        db.add(db_reason)
 
         valid_transactions.append(validated_schema.transaction_id)
 
@@ -172,7 +173,7 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
             "valid_rows": len(valid_transactions),
             "quarantined_rows": len(quarantined_errors),
             "rule_decided_count": rule_decided_count,
-            "needs_llm_count": needs_llm_count
+            "llm_decided_count": llm_decided_count
         })
     )
     db.add(audit_entry)
@@ -185,5 +186,5 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
         "quarantined_rows_count": len(quarantined_errors),
         "quarantined_errors": quarantined_errors,
         "rule_decided_count": rule_decided_count,
-        "needs_llm_count": needs_llm_count
+        "llm_decided_count": llm_decided_count
     }
