@@ -3,7 +3,7 @@ import pytest
 from app.llm_reasoning import generate_llm_reasoning, fallback_rule_reasoning
 
 def test_er2_fallback_when_key_missing_or_placeholder(monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "your_anthropic_api_key_here")
+    monkeypatch.setenv("GEMINI_API_KEY", "your_gemini_api_key_here")
     tx = {
         "transaction_id": "TX_AMBIG_1",
         "amount": 15000.0,
@@ -23,7 +23,7 @@ def test_er2_fallback_when_key_missing_or_placeholder(monkeypatch):
     assert any("ER-2" in r for r in reasons)
 
 def test_sec6_prompt_safety_scoped_fields(monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "your_anthropic_api_key_here")
+    monkeypatch.setenv("GEMINI_API_KEY", "your_gemini_api_key_here")
     tx_with_label = {
         "transaction_id": "TX_AMBIG_2",
         "amount": 5000.0,

@@ -22,7 +22,7 @@ ChargebackGuard is a transparent, defense-only fraud detection system that repla
 
 - **Backend:** Python 3.11+ / FastAPI / SQLAlchemy / Pydantic v2 / PyJWT / Pytest
 - **Database:** SQLite (`chargeback_guard.db`)
-- **LLM Layer:** Anthropic Claude API (`claude-3-5-sonnet-20241022`) with rule-based fallback (`degraded_reasoning`, ER-2)
+- **LLM Layer:** Google Gemini API (`gemini-3.6-flash` / `gemini-2.5-flash` via `google-genai` SDK) with rule-based fallback (`degraded_reasoning`, ER-2)
 - **Frontend:** React 18 / Vite / Tailwind CSS / Lucide Icons
 - **Version Control:** Git / GitHub (`https://github.com/ArjunReddyVelma/ChargebackGuard.git`)
 

@@ -23,7 +23,7 @@ This architecture is scoped for a **2-week buildathon MVP**, not a production ba
 | Backend | **Python + FastAPI** | Fast to write, native fit for the ML/LLM-calling code, automatic OpenAPI docs (useful for demo/judges) |
 | Database | **SQLite (MVP) → PostgreSQL (if time allows)** | SQLite needs zero setup and is plenty for a batch dataset of a few thousand rows; Postgres is a drop-in upgrade if you want to demo from a hosted instance |
 | Rule engine | **Plain Python (pandas + explicit rule functions)** | No need for a rules-engine framework (e.g., Drools) at this scale — hand-written rules are easier to explain to judges and easier to debug |
-| LLM reasoning layer | **Anthropic API (Claude)** | Used only for ambiguous-case reasoning and reason-chain generation, called via simple `messages` API, not an agent framework |
+| LLM reasoning layer | **Google Gemini API (`google-genai` SDK)** | Used only for ambiguous-case reasoning and reason-chain generation, called via `google-genai` SDK (`gemini-3.6-flash`), not an agent framework |
 | Auth (MVP) | **Simple single-role login (email + password, hashed) using FastAPI + JWT** | Full 4-role AuthN/AuthZ matrix from the SRS is over-engineering for a demo with 1–2 people using it; JWT session is enough to show "authenticated access" without wasted effort |
 | Hosting | **Render / Railway (backend) + Vercel (frontend)**, or a single VM if simpler | Free/cheap tiers, fast to deploy, minimal DevOps |
 | Monitoring (MVP) | **Structured logging to file/console + a single metrics endpoint** | No need for a full observability stack (Datadog/Grafana) for a batch-processing demo |
@@ -201,7 +201,7 @@ Kept intentionally RESTful and small — no GraphQL, no separate microservice pe
 | Data at rest | Acceptable to leave unencrypted-at-rest for a demo on a managed hosting provider's disk; called out as a gap for production in the writeup |
 | PII handling | `device_id` treated as an opaque string in the synthetic dataset (already anonymized) — no real PII enters the system at all, since data is synthetic/public |
 | LLM prompt hygiene | Each LLM call includes only the single transaction's relevant fields — no batch-wide or cross-user data in one prompt (SEC-6) |
-| Secrets | API keys (Anthropic, DB credentials) stored in environment variables, never committed to the repo |
+| Secrets | API keys (Google Gemini API, DB credentials) stored in environment variables, never committed to the repo |
 
 Full production security posture (encryption at rest, access logging, key rotation, SEC-1–SEC-7 in full) is explicitly deferred — noted as future work, not silently ignored.
 
