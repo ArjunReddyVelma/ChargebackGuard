@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, UploadCloud, ShieldAlert, LogOut, UserCheck } from 'lucide-react';
+import { LayoutDashboard, UploadCloud, ShieldAlert, FileText, Sliders, LogOut, UserCheck } from 'lucide-react';
 
 export default function AppShell({ activeView, setActiveView, user, onLogout, children }) {
   const isManager = user?.role === 'Risk Manager';
@@ -8,6 +8,10 @@ export default function AppShell({ activeView, setActiveView, user, onLogout, ch
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'upload', label: 'Upload Batch', icon: UploadCloud },
     { id: 'queue', label: 'Review Queue', icon: ShieldAlert },
+    ...(isManager ? [
+      { id: 'audit', label: 'Audit Log', icon: FileText },
+      { id: 'settings', label: 'Settings', icon: Sliders },
+    ] : [])
   ];
 
   return (

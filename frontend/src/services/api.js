@@ -115,3 +115,16 @@ export async function updateConfig(configData) {
   if (!res.ok) throw new Error(data.detail?.message || 'Failed to update config.');
   return data;
 }
+
+export async function getAuditLog(eventType = null) {
+  const url = new URL(`${API_URL}/audit-log`);
+  if (eventType) url.searchParams.append('event_type', eventType);
+
+  const res = await fetch(url.toString(), {
+    headers: getAuthHeaders()
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail?.message || 'Failed to fetch audit log.');
+  return data;
+}

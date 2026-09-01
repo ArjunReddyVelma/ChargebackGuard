@@ -4,8 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from app.database import Base, engine, SessionLocal
-from app.routers import batches, transactions, auth, metrics, config
+from app.routers import batches, transactions, auth, metrics, config, audit
 from app.auth import seed_demo_users
+
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +45,8 @@ app.include_router(batches.router)
 app.include_router(transactions.router)
 app.include_router(metrics.router)
 app.include_router(config.router)
+app.include_router(audit.router)
+
 
 @app.get("/health")
 def health_check():

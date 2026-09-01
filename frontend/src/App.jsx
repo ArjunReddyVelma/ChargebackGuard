@@ -4,6 +4,8 @@ import AppShell from './views/AppShell';
 import DashboardView from './views/DashboardView';
 import UploadView from './views/UploadView';
 import ReviewQueueView from './views/ReviewQueueView';
+import AuditLogView from './views/AuditLogView';
+import SettingsView from './views/SettingsView';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -63,6 +65,10 @@ export default function App() {
           onClearSelectedId={() => setSelectedTxId(null)}
         />
       )}
+
+      {activeView === 'audit' && <AuditLogView />}
+
+      {activeView === 'settings' && <SettingsView />}
     </AppShell>
   );
 }
