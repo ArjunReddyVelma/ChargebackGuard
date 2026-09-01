@@ -3,7 +3,6 @@ import json
 import logging
 from typing import Dict, Any, List, Tuple
 from google import genai
-from google.genai import errors
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +31,10 @@ def generate_llm_reasoning(tx: Dict[str, Any], rule_reasons: List[str]) -> Tuple
         where decided_by is 'llm' on successful API response,
         or 'degraded_reasoning' on fallback (ER-2).
     """
-    # DR-1 & SEC-6: Enforce Strict Feature Whitelisting (Strip any extraneous fields like is_fraud)
     scoped_tx = {k: v for k, v in tx.items() if k in ALLOWED_FEATURE_NAMES}
 
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
 
-    # ER-2: Fallback if API key is missing or placeholder
     if not api_key or api_key == "your_gemini_api_key_here":
         logger.warning("GEMINI_API_KEY missing or placeholder. Triggering rule-based fallback (ER-2).")
         return fallback_rule_reasoning(scoped_tx, rule_reasons)
@@ -65,24 +62,30 @@ JSON Output Format:
 }}
 """
 
-    try:
-        client = genai.Client(api_key=api_key)
-        
-        # Try gemini-3.6-flash, fallback to gemini-2.5-flash if needed
+    client = genai.Client(api_key=api_key)
+    
+    # Preferred Gemini models list
+    models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.6-flash"]
+    response = None
+
+    for m in models_to_try:
         try:
             response = client.models.generate_content(
-                model="gemini-3.6-flash",
+                model=m,
                 contents=prompt,
             )
-        except Exception:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-            )
+            if response and response.text:
+                break
+        except Exception as e:
+            logger.warning(f"Gemini model {m} failed: {e}. Trying next model...")
+            continue
 
+    if not response or not response.text:
+        return fallback_rule_reasoning(scoped_tx, rule_reasons)
+
+    try:
         response_text = response.text.strip()
         
-        # Clean markdown codeblocks if wrapped in ```json ... ```
         if response_text.startswith("```"):
             lines = response_text.splitlines()
             if lines[0].startswith("```"):
@@ -93,30 +96,22 @@ JSON Output Format:
 
         parsed = json.loads(response_text)
         score = int(parsed.get("score", 50))
-        # Ensure score stays in 0..100
         score = max(0, min(100, score))
         reasons = parsed.get("reason_bullets", [])
         
         if not isinstance(reasons, list) or not reasons:
             reasons = ["Ambiguous risk signals require analyst queue review."]
 
-        # EC-7 / BR-7 Grounding Validation
-        valid_reasons = validate_grounding(reasons, scoped_tx)
-        if not valid_reasons:
-            valid_reasons = rule_reasons or ["Transaction evaluated for potential fraud risk signals."]
-
-        return (score, valid_reasons, "llm")
+        return (score, reasons, "llm")
 
     except Exception as e:
-        logger.error(f"Gemini LLM API call failed: {e}. Triggering ER-2 fallback.")
-        print(f"Gemini LLM API call failed: {e}. Triggering ER-2 fallback.")
+        logger.error(f"Gemini response parsing failed: {e}. Triggering ER-2 fallback.")
         return fallback_rule_reasoning(scoped_tx, rule_reasons)
 
 
 def fallback_rule_reasoning(scoped_tx: Dict[str, Any], rule_reasons: List[str]) -> Tuple[int, List[str], str]:
     """
-    ER-2 Fallback: Deterministic scoring logic when Gemini API is unavailable or missing key.
-    Calculates a heuristic risk score (50-65) to route to review queue with transparent fallback notice.
+    ER-2 Fallback: Deterministic scoring logic when Gemini API is unavailable or rate limited.
     """
     amount = float(scoped_tx.get("amount", 0))
     avg_amount = float(scoped_tx.get("avg_user_amount", 0))
@@ -137,18 +132,3 @@ def fallback_rule_reasoning(scoped_tx: Dict[str, Any], rule_reasons: List[str]) 
     reasons.append("System degraded: LLM unavailable, calculated rule-based risk score (ER-2).")
 
     return (score, reasons, "degraded_reasoning")
-
-
-def validate_grounding(reasons: List[str], tx: Dict[str, Any]) -> List[str]:
-    """
-    BR-7 / EC-7 Grounding Check: Filters out hallucinatory claims not grounded in input fields.
-    """
-    grounded_reasons = []
-    tx_str = json.dumps(tx).lower()
-
-    for reason in reasons:
-        # Check if numbers or key values in reason appear in tx
-        # Simple grounding verification heuristic: keep reason if reasonable
-        grounded_reasons.append(reason)
-
-    return grounded_reasons
