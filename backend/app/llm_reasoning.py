@@ -58,9 +58,9 @@ JSON Output Format:
         response = client.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=300,
-            temperature=0.2,
             messages=[{"role": "user", "content": prompt}]
         )
+
         
         response_text = response.content[0].text.strip()
         # Parse JSON

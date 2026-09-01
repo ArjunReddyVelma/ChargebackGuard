@@ -29,14 +29,14 @@ def evaluate_transaction_rules(tx: Dict[str, Any]) -> Tuple[str, Optional[int], 
         reasons.append(f"Data quality anomaly detected: unrealistically high 10-minute velocity ({velocity}).")
         return ("rule_decided", 85, "review-queue", "ANOMALY_HIGH_VELOCITY", reasons)
 
-    # 1. Check High-Confidence Fraud Block Rules
-    # Geo Mismatch + New Device + High Velocity
     geo_mismatch = (ip_country != billing_country)
     if shipping_country:
         geo_mismatch = geo_mismatch or (shipping_country != billing_country)
 
-    if velocity >= 5:
-        reasons.append(f"Extreme transaction velocity: {velocity} transactions in trailing 10 minutes.")
+    # 1. Check High-Confidence Fraud Block Rules
+    # Extreme velocity on NEW/recent account (<= 30 days) -> Clear Block
+    if velocity >= 5 and account_age_days <= 30:
+        reasons.append(f"Extreme transaction velocity ({velocity} in 10m) on new account ({account_age_days} days).")
         if is_new_device:
             reasons.append("Transaction originated from an unrecognized new device.")
         if geo_mismatch:
@@ -50,7 +50,6 @@ def evaluate_transaction_rules(tx: Dict[str, Any]) -> Tuple[str, Optional[int], 
         return ("rule_decided", 88, "auto-block", "RULE_NEW_DEV_GEO_VELOCITY_BLOCK", reasons)
 
     # 2. Check High-Confidence Clear Pass Rules
-    # Established user, normal amount, no new device, no geo mismatch, low velocity
     is_normal_amount = True
     if avg_user_amount > 0 and account_age_days > 0:  # EC-2: explicit check, no divide by zero!
         ratio = amount / avg_user_amount
@@ -64,7 +63,6 @@ def evaluate_transaction_rules(tx: Dict[str, Any]) -> Tuple[str, Optional[int], 
         return ("rule_decided", 5, "auto-clear", "RULE_TRUSTED_USER_CLEAR", reasons)
 
     # 3. Ambiguous Case -> Route to LLM Reasoning Layer
-    # Reasons collected so far to assist LLM context
     if is_new_device:
         reasons.append("Unrecognized new device used.")
     if geo_mismatch:
@@ -72,7 +70,7 @@ def evaluate_transaction_rules(tx: Dict[str, Any]) -> Tuple[str, Optional[int], 
     if velocity >= 2:
         reasons.append(f"Velocity of {velocity} transactions in trailing 10 minutes.")
     if account_age_days == 0:
-        reasons.append("Brand new account (0 days old).")  # EC-2 explicit note
+        reasons.append("Brand new account (0 days old).")
     elif avg_user_amount > 0:
         ratio = amount / avg_user_amount
         if ratio > 2.0:
