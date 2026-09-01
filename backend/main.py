@@ -3,15 +3,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.database import Base, engine
-from app.routers import batches, transactions
-
+from app.database import Base, engine, SessionLocal
+from app.routers import batches, transactions, auth, metrics, config
+from app.auth import seed_demo_users
 
 # Load environment variables
 load_dotenv()
 
 # Create SQLite database tables on startup
 Base.metadata.create_all(bind=engine)
+
+# Seed demo users on startup
+db = SessionLocal()
+try:
+    seed_demo_users(db)
+finally:
+    db.close()
 
 app = FastAPI(
     title="ChargebackGuard API",
@@ -32,9 +39,11 @@ app.add_middleware(
 )
 
 # Register routers
+app.include_router(auth.router)
 app.include_router(batches.router)
 app.include_router(transactions.router)
-
+app.include_router(metrics.router)
+app.include_router(config.router)
 
 @app.get("/health")
 def health_check():

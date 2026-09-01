@@ -116,6 +116,8 @@ class TestLabel(Base):
     Used ONLY post-hoc by Metrics Service for precision/recall calculation.
     """
     __tablename__ = "test_labels"
+    __test__ = False
 
     transaction_id = Column(String, primary_key=True)
     is_fraud = Column(Boolean, nullable=False)
+
