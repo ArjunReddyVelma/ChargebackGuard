@@ -1,22 +1,68 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react';
+import LoginView from './views/LoginView';
+import AppShell from './views/AppShell';
+import DashboardView from './views/DashboardView';
+import UploadView from './views/UploadView';
+import ReviewQueueView from './views/ReviewQueueView';
 
 export default function App() {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const [user, setUser] = useState(null);
+  const [activeView, setActiveView] = useState('dashboard');
+  const [selectedTxId, setSelectedTxId] = useState(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
+    if (savedUser && savedToken) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    }
+  }, []);
+
+  const handleLoginSuccess = (data) => {
+    setUser({ email: data.email, role: data.role });
+    setActiveView('dashboard');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  if (!user) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white p-6">
-      <div className="max-w-md w-full bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-2xl text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-blue-400 mb-2">ChargebackGuard</h1>
-        <p className="text-slate-400 text-sm mb-6">Explainable AI Risk & Fraud Detection Agent</p>
-        
-        <div className="inline-block px-4 py-2 bg-slate-700/50 rounded-lg border border-slate-600 text-xs font-mono text-slate-300 mb-4">
-          API URL: <span className="text-emerald-400">{apiUrl}</span>
-        </div>
-        
-        <div className="mt-4 text-xs text-slate-500">
-          Phase 0: Setup & Scaffolding Complete
-        </div>
-      </div>
-    </div>
-  )
+    <AppShell activeView={activeView} setActiveView={setActiveView} user={user} onLogout={handleLogout}>
+      {activeView === 'dashboard' && (
+        <DashboardView
+          onSelectTransaction={(id) => {
+            setSelectedTxId(id);
+            setActiveView('queue');
+          }}
+          onUploadClick={() => setActiveView('upload')}
+        />
+      )}
+
+      {activeView === 'upload' && (
+        <UploadView
+          onUploadComplete={() => setActiveView('dashboard')}
+          onGoToQueue={() => setActiveView('queue')}
+        />
+      )}
+
+      {activeView === 'queue' && (
+        <ReviewQueueView
+          initialSelectedId={selectedTxId}
+          onClearSelectedId={() => setSelectedTxId(null)}
+        />
+      )}
+    </AppShell>
+  );
 }
