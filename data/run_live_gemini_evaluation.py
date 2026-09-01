@@ -63,7 +63,9 @@ def run_live_gemini_verification():
         print(f"  Decided By:      '{s.decided_by}'")
         print("  Reason Bullets:")
         for r in reasons:
-            print(f"    • {r}")
+            clean_r = r.lstrip('•-* ').strip()
+            print(f"    • {clean_r}")
+
     print("==========================================================================\n")
 
     # 4. Print Full Metrics Output
