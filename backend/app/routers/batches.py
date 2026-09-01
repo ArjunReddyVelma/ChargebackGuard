@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.database import get_db
-from app.models import Transaction, Score, ReasonChain, AuditLog
+from app.models import Transaction, Score, ReasonChain, Cost, AuditLog
 from app.schemas import TransactionIngestSchema
 from app.scoring_service import score_and_route_transaction
+from app.cost_calculator import calculate_transaction_cost
+
 
 router = APIRouter(prefix="/batches", tags=["Batches"])
 
@@ -157,7 +159,17 @@ async def upload_batch(file: UploadFile = File(...), db: Session = Depends(get_d
         )
         db.add(db_reason)
 
+        # Compute and persist Cost estimates (FR-6) for review-queue and auto-block
+        fp_cost, fn_cost = calculate_transaction_cost(validated_schema.amount)
+        db_cost = Cost(
+            transaction_id=validated_schema.transaction_id,
+            fp_cost_estimate=fp_cost,
+            fn_cost_estimate=fn_cost
+        )
+        db.add(db_cost)
+
         valid_transactions.append(validated_schema.transaction_id)
+
 
     # Log audit entry for batch ingestion
     audit_entry = AuditLog(
