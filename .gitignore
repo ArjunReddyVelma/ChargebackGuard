@@ -1,0 +1,36 @@
+# Environments & Virtual Envs
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+
+# Node modules & frontend builds
+node_modules/
+frontend/node_modules/
+dist/
+build/
+
+# Environment variables & secrets
+.env
+*.env
+!.env.example
+!frontend/.env.example
+
+# SQLite Databases & data files
+*.db
+*.sqlite
+*.sqlite3
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Operating system & IDE files
+.DS_Store
+.vscode/
+.idea/
