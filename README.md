@@ -90,7 +90,8 @@ All performance metrics below were computed on the **identical 100-transaction t
 | **Recall** | 100.00% | **100.00%** | **100.00%** |
 | **F1 Score** | **0.3810** | **0.7500** | **+0.3690 (+36.9 percentage points!)** |
 | **False Positive Rate (FPR)** | 44.32% | **9.09%** | **-35.23 percentage points** |
-| **FP Cost Exposure** | ₹101,636.88 | **₹23,410.15** | **77.0% Financial Cost Reduction!** |
+| **FP Cost Exposure** | ₹54,867.63 | **₹23,410.15** | **57.3% Financial Cost Reduction!** |
+
 
 ### Comparison Against Strict Phase 1 Heuristic
 
